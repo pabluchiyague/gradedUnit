@@ -8,20 +8,14 @@ require 'includes/db.php';
 include 'includes/nav.php';
 
 $user_id = $_SESSION['user_id'];
-$stmt = $pdo->prepare("SELECT start_date, end_date FROM memberships WHERE user_id = ?");
+$stmt = $pdo->prepare("SELECT end_date FROM memberships WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $membership = $stmt->fetch();
 
 $today = new DateTime();
-$has_membership = false;
-
-if ($membership) {
-    $end_date = new DateTime($membership['end_date']);
-    $has_membership = $today < $end_date;
-}
-
-if(!$has_membership){
-    header('Location: membership.php');
+if (!$membership || new DateTime($membership['end_date']) < $today) {
+    header("Location: membership.php");
+    exit;
 }
 
 // Fetch all awards for this user

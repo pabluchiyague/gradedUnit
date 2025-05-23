@@ -6,7 +6,16 @@ if (!isset($_SESSION['user_id'])) {
 }
 require 'includes/db.php';
 include 'includes/nav.php';
+$user_id = $_SESSION['user_id'];
+$stmt = $pdo->prepare("SELECT end_date FROM memberships WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$membership = $stmt->fetch();
 
+$today = new DateTime();
+if (!$membership || new DateTime($membership['end_date']) < $today) {
+    header("Location: membership.php");
+    exit;
+}
 
 $measures = [
     "Carbon Emissions Reduction",

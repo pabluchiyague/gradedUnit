@@ -14,8 +14,8 @@ include 'includes/nav.php';
 <body style="background: url('images/background_home.jpg') no-repeat center center fixed; background-size: cover;" class="bg-light">
 <div class="container mt-5">
     <div class="card p-4 shadow">
-        <h2>Credentials</h2>
-        <p>Page content goes here.</p>
+        <h2>We are proudly supported by:</h2>
+        <a href="https://sdgs.un.org/goals"><img src='images/unesco.jpg'></a>
     </div>
 </div>
 <?php include 'includes/footer.php'; ?>

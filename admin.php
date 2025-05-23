@@ -8,25 +8,44 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-// Handle promote/demote actions
+
+// Handle role change
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['action'])) {
     $user_id = $_POST['user_id'];
-    $new_role = $_POST['action'] === 'make_admin' ? 'admin' : 'user';
-
-    $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id = ?");
-    $stmt->execute([$new_role, $user_id]);
+    if ($_POST['action'] === 'delete') {
+        if ($user_id != $_SESSION['user_id']) {
+            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+        }
+    } else {
+        $new_role = $_POST['action'] === 'make_admin' ? 'admin' : 'user';
+        $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id = ?");
+        $stmt->execute([$new_role, $user_id]);
+    }
     header('Location: admin.php');
     exit;
 }
 
-// Fetch all transactions
-$transactions_stmt = $pdo->prepare("SELECT purchases.*, users.company_name FROM purchases JOIN users ON purchases.user_id = users.id ORDER BY purchase_date DESC");
-$transactions_stmt->execute();
-$transactions = $transactions_stmt->fetchAll();
+// Handle create user
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
+    $company = $_POST['company_name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $role = $_POST['role'];
+
+    $check = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+    $check->execute([$email]);
+    if ($check->rowCount() === 0) {
+        $stmt = $pdo->prepare("INSERT INTO users (company_name, email, password, role) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$company, $email, $password, $role]);
+    }
+    header('Location: admin.php');
+    exit;
+}
 
 // Fetch all users
-$users_stmt = $pdo->query("SELECT id, company_name, email, role FROM users ORDER BY company_name");
-$users = $users_stmt->fetchAll();
+$users = $pdo->query("SELECT id, company_name, email, role FROM users ORDER BY company_name")->fetchAll();
+$transactions = $pdo->query("SELECT purchases.*, users.company_name FROM purchases JOIN users ON purchases.user_id = users.id ORDER BY purchase_date DESC")->fetchAll();
 ?>
 
 <!DOCTYPE html>
@@ -42,15 +61,11 @@ $users = $users_stmt->fetchAll();
     <div class="card p-4 shadow bg-white bg-opacity-90">
         <h2 class="mb-4">Admin Dashboard</h2>
 
+        <!-- Transactions Table -->
         <h4>All Transactions</h4>
         <table class="table table-bordered table-hover bg-white">
             <thead class="table-success">
-                <tr>
-                    <th>Company</th>
-                    <th>Item</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                </tr>
+                <tr><th>Company</th><th>Item</th><th>Amount</th><th>Date</th></tr>
             </thead>
             <tbody>
                 <?php foreach ($transactions as $txn): ?>
@@ -66,15 +81,29 @@ $users = $users_stmt->fetchAll();
 
         <hr class="my-4">
 
-        <h4>Manage User Roles</h4>
+        <!-- Add User Form -->
+        <h4>Create New User</h4>
+        <form method="POST" class="row g-3 mb-4">
+            <input type="hidden" name="create_user" value="1">
+            <div class="col-md-4"><input name="company_name" type="text" class="form-control" placeholder="Company Name" required></div>
+            <div class="col-md-3"><input name="email" type="email" class="form-control" placeholder="Email" required></div>
+            <div class="col-md-3"><input name="password" type="password" class="form-control" placeholder="Password" required></div>
+            <div class="col-md-2">
+                <select name="role" class="form-select">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-success">Add User</button>
+            </div>
+        </form>
+
+        <!-- Users Table -->
+        <h4>Manage Users</h4>
         <table class="table table-bordered table-hover bg-white">
             <thead class="table-success">
-                <tr>
-                    <th>Company Name</th>
-                    <th>Email</th>
-                    <th>Current Role</th>
-                    <th>Actions</th>
-                </tr>
+                <tr><th>Company</th><th>Email</th><th>Role</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 <?php foreach ($users as $user): ?>
@@ -91,6 +120,7 @@ $users = $users_stmt->fetchAll();
                                     <?php else: ?>
                                         <button name="action" value="remove_admin" class="btn btn-sm btn-outline-danger">Remove Admin</button>
                                     <?php endif; ?>
+                                    <button name="action" value="delete" class="btn btn-sm btn-outline-secondary" onclick="return confirm('Are you sure you want to delete this user?');">Delete</button>
                                 </form>
                             <?php else: ?>
                                 <span class="text-muted">You</span>
